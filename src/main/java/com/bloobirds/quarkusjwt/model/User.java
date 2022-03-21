@@ -15,8 +15,12 @@ import lombok.ToString;
 public class User {
 
     public static Map<String, User> data = null;
+    private static String pass1= "1UnQZzBd3GqcFWT8PYECsGBgUHe64wCk72hqUwI4EEo=";
+    private static String pass2= "pTBwKGZTsDpjJg47vFmi8X3fxcnHEiQobOgvM9QBHts=";
     public String username;
     public String password;
+
+
     public Set<Role> roles;
 
     public static User findByUsername(String username) {
@@ -27,11 +31,9 @@ public class User {
     public static void init(){
         data= new HashMap<>();
         //username:passwowrd -> user:user
-//		data.put("user", new User("user", "cBrlgyL2GI2GINuLUUwgojITuIufFycpLG4490dhGtY=", Collections.singleton(Role.USER)));
-        data.put("user", new User("user", "OT7FEYTpdkFbo9DJV6/qGI1QHkVLTtID0hFXvXJ5JGs=", Collections.singleton(Role.USER)));
+        data.put("user", new User("user", pass2, Collections.singleton(Role.USER)));
         //username:passwowrd -> admin:admin
-//		data.put("admin", new User("admin", "dQNjUIMorJb8Ubj2+wVGYp6eAeYkdekqAcnYp+aRq5w=", Collections.singleton(Role.ADMIN)));
-        data.put("admin", new User("admin", "iuByMTFsFghLqzUX6ErfKRbJ/i/33gQ3kQaFpdGBQjk=", Collections.singleton(Role.ADMIN)));
+        data.put("admin", new User("admin", pass1, Collections.singleton(Role.ADMIN)));
     }
 
 }

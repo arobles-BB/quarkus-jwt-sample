@@ -1,71 +1,66 @@
 package com.bloobirds.quarkusjwt.util;
 
-import java.io.InputStream;
-import java.security.KeyFactory;
-import java.security.PrivateKey;
-import java.security.spec.PKCS8EncodedKeySpec;
+import com.bloobirds.quarkusjwt.model.JSONWebKEy;
+import com.bloobirds.quarkusjwt.model.JWKKey;
+import com.bloobirds.quarkusjwt.model.Role;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.smallrye.jwt.algorithm.SignatureAlgorithm;
+import io.smallrye.jwt.build.Jwt;
+import io.smallrye.jwt.build.JwtClaimsBuilder;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import javax.enterprise.context.RequestScoped;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.bloobirds.quarkusjwt.model.Role;
-
-import io.smallrye.jwt.build.Jwt;
-import io.smallrye.jwt.build.JwtClaimsBuilder;
-
+@RequestScoped
 public class TokenUtils {
 
-    public static String generateToken(String username, Set<Role> roles, Long duration, String issuer) throws Exception {
-        String privateKeyLocation = "/privatekey.pem";
-        PrivateKey privateKey = readPrivateKey(privateKeyLocation);
-
+    public static String generateToken(String username, Set<Role> roles, Long duration, String issuer, String secret) {
         JwtClaimsBuilder claimsBuilder = Jwt.claims();
-        long currentTimeInSecs = currentTimeInSecs();
 
         Set<String> groups = new HashSet<>();
         for (Role role : roles) groups.add(role.toString());
-
         claimsBuilder.issuer(issuer);
         claimsBuilder.subject(username);
-        claimsBuilder.issuedAt(currentTimeInSecs);
-        claimsBuilder.expiresAt(currentTimeInSecs + duration);
+        claimsBuilder.issuedAt(System.currentTimeMillis());
+        claimsBuilder.expiresIn(duration);
         claimsBuilder.groups(groups);
 
-        return claimsBuilder.jws().signatureKeyId(privateKeyLocation).sign(privateKey);
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+        SecretKey secretKey= new SecretKeySpec(secretBytes, "HS256");
+
+        return claimsBuilder.jws().algorithm(SignatureAlgorithm.HS256).sign(secretKey);
+
     }
 
-    public static PrivateKey readPrivateKey(final String pemResName) throws Exception {
-        try (InputStream contentIS = TokenUtils.class.getResourceAsStream(pemResName)) {
-            byte[] tmp = new byte[4096];
-            int length = contentIS.read(tmp);
-            return decodePrivateKey(new String(tmp, 0, length, "UTF-8"));
-        }
-    }
+    public static void writeSecret64(String secret) throws IOException {
+        JSONWebKEy key= new JSONWebKEy();
+        JWKKey data= new JWKKey();
+        data.setK(secret);
+        ArrayList<JWKKey> keys= new ArrayList<>();
+        keys.add(data);
+        key.setKeys(keys);
 
-    public static PrivateKey decodePrivateKey(final String pemEncoded) throws Exception {
-        byte[] encodedBytes = toEncodedBytes(pemEncoded);
+        ObjectMapper mapper = new ObjectMapper();
+        String jsonSecret=mapper.writeValueAsString(key);
 
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encodedBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        return kf.generatePrivate(keySpec);
-    }
+        Base64.Encoder encoder= Base64.getEncoder();
+        byte[] jsonSecret64 = encoder.encode(jsonSecret.getBytes(StandardCharsets.UTF_8));
 
-    public static byte[] toEncodedBytes(final String pemEncoded) {
-        final String normalizedPem = removeBeginEnd(pemEncoded);
-        return Base64.getDecoder().decode(normalizedPem);
-    }
-
-    public static String removeBeginEnd(String pem) {
-        pem = pem.replaceAll("-----BEGIN (.*)-----", "");
-        pem = pem.replaceAll("-----END (.*)----", "");
-        pem = pem.replaceAll("\r\n", "");
-        pem = pem.replaceAll("\n", "");
-        return pem.trim();
-    }
-
-    public static int currentTimeInSecs() {
-        long currentTimeMS = System.currentTimeMillis();
-        return (int) (currentTimeMS / 1000);
+        FileOutputStream fio= new FileOutputStream("secret");
+        fio.write(jsonSecret64);
+        fio.close();
     }
 
 }

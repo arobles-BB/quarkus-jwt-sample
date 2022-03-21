@@ -25,6 +25,7 @@ public class AuthenticationREST {
     @Inject
     PBKDF2Encoder passwordEncoder;
 
+    @ConfigProperty(name = "com.bloobirds.quarkusjwt.password.secret")  private String secret;
     @ConfigProperty(name = "com.bloobirds.quarkusjwt.jwt.duration") public Long duration;
     @ConfigProperty(name = "mp.jwt.verify.issuer") public String issuer;
 
@@ -34,14 +35,17 @@ public class AuthenticationREST {
     @Produces(MediaType.APPLICATION_JSON)
     public Response login(AuthRequest authRequest) {
         User u = User.findByUsername(authRequest.username);
-        log.info(passwordEncoder.encode(authRequest.password));
+        log.info("u:"+u);
         if (u != null && u.password.equals(passwordEncoder.encode(authRequest.password))) {
             try {
-                return Response.ok(new AuthResponse(TokenUtils.generateToken(u.username, u.roles, duration, issuer))).build();
+                AuthResponse response=new AuthResponse(TokenUtils.generateToken(u.username, u.roles, duration, issuer, secret));
+                return Response.ok(response).build();
             } catch (Exception e) {
+                log.warning(e.getLocalizedMessage());
                 return Response.status(Status.UNAUTHORIZED).build();
             }
         } else {
+            log.warning("p:"+passwordEncoder.encode(authRequest.password));
             return Response.status(Status.UNAUTHORIZED).build();
         }
     }

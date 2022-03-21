@@ -1,33 +1,65 @@
 package com.bloobirds.quarkusjwt.rest;
 
+import com.bloobirds.quarkusjwt.model.Message;
+import io.smallrye.jwt.auth.principal.JWTParser;
+import io.smallrye.jwt.auth.principal.ParseException;
+import lombok.extern.java.Log;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.jwt.JsonWebToken;
+
 import javax.annotation.security.RolesAllowed;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import javax.inject.Inject;
+import javax.ws.rs.CookieParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.nio.charset.StandardCharsets;
 
-import com.bloobirds.quarkusjwt.model.Message;
-
-
+@Log
 @Path("/resource")
 public class ResourceREST {
 
+    @Inject
+    JWTParser parser;
+    @ConfigProperty(name = "com.bloobirds.quarkusjwt.password.secret")
+    private String secret;
+
     @RolesAllowed("USER")
-    @GET @Path("/user") @Produces(MediaType.APPLICATION_JSON)
+    @GET
+    @Path("/user")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response user() {
         return Response.ok(new Message("Content for user")).build();
     }
 
     @RolesAllowed("ADMIN")
-    @GET @Path("/admin") @Produces(MediaType.APPLICATION_JSON)
+    @GET
+    @Path("/admin")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response admin() {
         return Response.ok(new Message("Content for admin")).build();
     }
 
     @RolesAllowed({"USER", "ADMIN"})
-    @GET @Path("/user-or-admin") @Produces(MediaType.APPLICATION_JSON)
+    @GET
+    @Path("/user-or-admin")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response userOrAdmin() {
         return Response.ok(new Message("Content for user or admin")).build();
     }
+
+    @GET
+    @Produces("text/plain")
+    public Response getUserName(@CookieParam("jwt") String jwtCookie) throws ParseException {
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+        SecretKey secretKey = new SecretKeySpec(secretBytes, "HS256");
+
+        JsonWebToken jwt = parser.verify(jwtCookie, secretKey);
+        return Response.ok("u:"+jwt.getName()+" r:"+jwt.getGroups()).build();
+    }
+
 }
